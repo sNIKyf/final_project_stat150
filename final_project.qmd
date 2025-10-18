@@ -19,7 +19,8 @@ pacman::p_load(
   arrow,
   lubridate,
   tidygeocoder,
-  janitor
+  janitor,
+  googledrive
 )
 
 ```
@@ -27,28 +28,36 @@ pacman::p_load(
 ```{r}
 #| label: data_import
 
-taxi_data_green <- read_parquet("/Users/new/Documents/Uni/R for Data Science/final_project/green_tripdata_2025-05.parquet")
+taxi_data_green <- read_parquet("Data/green_tripdata_2025-05.parquet")
 
-taxi_data_yellow <- read_parquet("/Users/new/Documents/Uni/R for Data Science/final_project/yellow_tripdata_2025-05.parquet")
+taxi_data_yellow <- read_parquet("Data/yellow_tripdata_2025-05.parquet")
 
-event_data <- read_csv("/Users/new/Documents/Uni/R for Data Science/final_project/NYC_Event_Information_Historical_05.2025.csv") |> 
+event_data <- read_csv("Data/NYC_Event_Information_Historical_05.2025.csv") |> 
   clean_names()
 
 event_data
 
 ```
 
+!Do not run this code chunk
+
 ```{r}
 
-#options(tidygeocoder.user_agent = "My University Project <nbezverkhyi@kse.org.ua>")
-#event_data_coord <- event_data |>
-#  geocode(address = event_location, method = 'osm')
+#This is how I converted the adresess data into coordinates using an API and put it into a seperate csv(Do not run this part)
 
+options(tidygeocoder.user_agent = "My University Project <nbezverkhyi@kse.org.ua>")
+event_data_coord <- event_data |>
+  geocode(address = event_location, method = 'osm')
 
 event_data_coord_pulled <- event_data_coord |>
   filter(!is.na(lat))
 
 write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coordinates.csv")
 
-event_data_coord_pulled
+```
+
+```{r}
+event_data_final <- read_csv("Data/NYC_Event_Information_Historical_05.2025_coordinates.csv")
+
+event_data_final
 ```
