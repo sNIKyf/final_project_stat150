@@ -4,10 +4,6 @@ format: html
 editor: visual
 ---
 
-extract the green and yellow taxis data from the parquet file.
-
-Get the coordinates data from the nominatim api and merge them with the events data
-
 ```{r}
 #| label: setup
 #| include: FALSE
@@ -42,6 +38,7 @@ event_data
 !Do not run this code chunk
 
 ```{r}
+#| label: adresses_into_coordinates
 
 #This is how I converted the adresess data into coordinates using an API and put it into a seperate csv(Do not run this part)
 
@@ -57,6 +54,7 @@ write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coo
 ```
 
 ```{r}
+#| label: event_dataset
 event_data_final <- read_csv("Data/NYC_Event_Information_Historical_05.2025_coordinates.csv")
 
 event_data_final
