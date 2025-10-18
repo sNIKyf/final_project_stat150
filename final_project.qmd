@@ -1,0 +1,54 @@
+---
+title: "Final_project"
+format: html
+editor: visual
+---
+
+extract the green and yellow taxis data from the parquet file.
+
+Get the coordinates data from the nominatim api and merge them with the events data
+
+```{r}
+#| label: setup
+#| include: FALSE
+
+library(pacman)
+
+pacman::p_load(
+  tidyverse,
+  arrow,
+  lubridate,
+  tidygeocoder,
+  janitor
+)
+
+```
+
+```{r}
+#| label: data_import
+
+taxi_data_green <- read_parquet("/Users/new/Documents/Uni/R for Data Science/final_project/green_tripdata_2025-05.parquet")
+
+taxi_data_yellow <- read_parquet("/Users/new/Documents/Uni/R for Data Science/final_project/yellow_tripdata_2025-05.parquet")
+
+event_data <- read_csv("/Users/new/Documents/Uni/R for Data Science/final_project/NYC_Event_Information_Historical_05.2025.csv") |> 
+  clean_names()
+
+event_data
+
+```
+
+```{r}
+
+#options(tidygeocoder.user_agent = "My University Project <nbezverkhyi@kse.org.ua>")
+#event_data_coord <- event_data |>
+#  geocode(address = event_location, method = 'osm')
+
+
+event_data_coord_pulled <- event_data_coord |>
+  filter(!is.na(lat))
+
+write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coordinates.csv")
+
+event_data_coord_pulled
+```
