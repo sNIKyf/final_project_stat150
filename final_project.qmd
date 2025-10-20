@@ -74,10 +74,11 @@ yellow_and_green |>
   head(10) |>
   view()
 ```
+
 ```{r}
 #| label: data preparing and merging
 
-taxi_zones <- read_sf("~/Documents/КШЕ/R for Data Science/final_project_stat150/Data/taxi_zones/taxi_zones.shp")
+taxi_zones <- read_sf("Data/taxi_zones/taxi_zones.shp")
 
 taxi_data <- yellow_and_green |>
   mutate(
@@ -131,4 +132,3 @@ departures <- inner_join(
 related_trips <- bind_rows(arrivals, departures) |> 
   view()
 ```
-
