@@ -31,7 +31,9 @@ taxi_data_yellow <- read_parquet("Data/yellow_tripdata_2025-05.parquet")
 event_data <- read_csv("Data/NYC_Event_Information_Historical_05.2025.csv") |> 
   clean_names()
 
-event_data
+event_data |> 
+  head (10) |> 
+  view()
 
 ```
 
@@ -57,5 +59,11 @@ write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coo
 #| label: event_dataset
 event_data_final <- read_csv("Data/NYC_Event_Information_Historical_05.2025_coordinates.csv")
 
-event_data_final
+event_data_final |>
+  head(10) |>
+  view()
+
+taxi_data_yellow |>
+  head(10) |>
+  view()
 ```
