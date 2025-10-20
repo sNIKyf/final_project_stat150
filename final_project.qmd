@@ -63,6 +63,7 @@ write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coo
 event_data_final <- read_csv("Data/NYC_Event_Information_Historical_05.2025_coordinates.csv")
   
 event_data_final <- event_data_final |> 
+  distinct() |> 
   select(-c(event_agency, event_type, event_borough, event_street_side, street_closure_type, community_board, police_precinct)) 
 
 event_data_final |>
