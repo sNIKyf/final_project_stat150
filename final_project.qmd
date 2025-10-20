@@ -12,6 +12,7 @@ library(pacman)
 
 pacman::p_load(
   tidyverse,
+  sf,
   arrow,
   lubridate,
   tidygeocoder,
@@ -27,6 +28,8 @@ pacman::p_load(
 taxi_data_green <- read_parquet("Data/green_tripdata_2025-05.parquet")
 
 taxi_data_yellow <- read_parquet("Data/yellow_tripdata_2025-05.parquet")
+
+yellow_and_green <- bind_rows(taxi_data_green, taxi_data_yellow)
 
 event_data <- read_csv("Data/NYC_Event_Information_Historical_05.2025.csv") |> 
   clean_names()
@@ -58,12 +61,73 @@ write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coo
 ```{r}
 #| label: event_dataset
 event_data_final <- read_csv("Data/NYC_Event_Information_Historical_05.2025_coordinates.csv")
+  
+event_data_final <- event_data_final |> 
+  select(-c(event_agency, event_type, event_borough, event_street_side, street_closure_type, community_board, police_precinct)) 
 
 event_data_final |>
   head(10) |>
   view()
 
-taxi_data_yellow |>
+yellow_and_green |>
   head(10) |>
   view()
 ```
+```{r}
+#| label: data preparing and merging
+
+taxi_zones <- read_sf("~/Documents/КШЕ/R for Data Science/final_project_stat150/Data/taxi_zones/taxi_zones.shp")
+
+taxi_data <- yellow_and_green |>
+  mutate(
+    tpep_pickup_datetime = ymd_hms(tpep_pickup_datetime),
+    tpep_dropoff_datetime = ymd_hms(tpep_dropoff_datetime)
+  ) |> 
+  select(
+    tpep_pickup_datetime,
+    tpep_dropoff_datetime,
+    PULocationID,
+    DOLocationID,
+    total_amount
+  ) |>
+  filter(!is.na(tpep_dropoff_datetime)) |> 
+  view()
+
+event_data_final <- event_data_final |> 
+  mutate(
+    start_date_time = mdy_hms(start_date_time),
+    end_date_time = mdy_hms(end_date_time)
+  ) |> 
+  st_as_sf(coords = c("long", "lat"), crs = 4326) |>
+  st_transform(st_crs(taxi_zones)) |>
+  st_join(taxi_zones) |> 
+  select( -c(OBJECTID, event_location, event_name, zone, borough)) |> 
+  filter(!is.na(LocationID)) |> 
+  mutate(
+    arrival_window_start = start_date_time - minutes(15), #проміжок часу за який людина може приїхати на подію на таксі
+    arrival_window_end   = start_date_time + minutes(5),
+    depart_window_start  = end_date_time - minutes(5), #аналогічно для відʼїзду
+    depart_window_end    = end_date_time + minutes(15)
+  ) |> 
+  view()
+
+arrivals <- inner_join(
+  taxi_data,
+  event_data_final,
+  by = join_by(DOLocationID == LocationID, between(tpep_dropoff_datetime, arrival_window_start, arrival_window_end)
+  )
+) |> 
+  mutate(match_type = "Arrival")
+  
+departures <- inner_join(
+  taxi_data,
+  event_data_final,
+  by = join_by(PULocationID == LocationID, between(tpep_pickup_datetime, depart_window_start, depart_window_end)
+  )
+) |> 
+  mutate(match_type = "Departure")
+
+related_trips <- bind_rows(arrivals, departures) |> 
+  view()
+```
+
