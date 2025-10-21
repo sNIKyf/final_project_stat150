@@ -78,6 +78,18 @@ yellow_and_green |>
   view()
 ```
 
+event_revenue \<- departures \|\>
+
+summarise(total_revenue = sum(total_amount), geometry, Shape_Leng, Shape_Area, .by = event_id) \|\>
+
+distinct() \|\>
+
+mutate(event_revenue_p = round(total_revenue \* 100 / sum(total_revenue), digits = 2)) \|\>
+
+mutate(total_revenue_p = round(total_revenue \* 100 / sum(taxi_data\$total_amount)))
+
+view()
+
 ```{r}
 #| label: data preparing and merging
 
@@ -137,7 +149,8 @@ related_trips <- bind_rows(arrivals, departures) |>
 event_revenue <- departures |>
   summarise(total_revenue = sum(total_amount), geometry, Shape_Leng, Shape_Area, .by = event_id) |>
   distinct() |>
-  mutate(total_revenue_p = round(total_revenue * 100 / sum(total_revenue), digits = 2)) |>
-  view()
+  mutate(event_revenue_p = round(total_revenue * 100 / sum(total_revenue), digits = 2)) |> # persent of revenue from event rides this month
+  mutate(total_revenue_p = total_revenue * 100 / sum(taxi_data$total_amount)) |> # persent of revenue from total rides this month
+  view() 
 
 ```
