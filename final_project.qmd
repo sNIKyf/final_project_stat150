@@ -1,10 +1,16 @@
 ---
 title: "Final_project"
 format: html
-editor: visual
 ---
+# Final Project - Analysis of NYC Taxi Trips Related to Events in May 2025 
 
+## Authors: Nikita Bezverkhyi, Arsen Hanhalo, Sofiia Danilova.
+
+### First step: Data Import and Preparation 
 ```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
 #| label: setup
 #| include: FALSE
 
@@ -13,16 +19,26 @@ library(pacman)
 pacman::p_load(
   tidyverse,
   sf,
+  https,
+  maps,
+  dplyr,
+  ggplot2,
   arrow,
   lubridate,
   tidygeocoder,
   janitor,
-  googledrive
+  googledrive,
+  scales,
+  viridis
+  
 )
 
 ```
 
 ```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
 #| label: data_import
 
 taxi_data_green <- read_parquet("Data/green_tripdata_2025-05.parquet")
@@ -43,26 +59,39 @@ event_data #|>
 
 ```
 
-!Do not run this code chunk
+
 
 ```{r}
+#!Do not run this code chunk
+
 #| label: adresses_into_coordinates
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
 
 #This is how I converted the adresess data into coordinates using an API and put it into a seperate csv(Do not run this part)
 
-options(tidygeocoder.user_agent = "My University Project <nbezverkhyi@kse.org.ua>")
-event_data_coord <- event_data |>
-  geocode(address = event_location, method = 'osm')
+#options(tidygeocoder.user_agent = "My University Project <nbezverkhyi@kse.org.ua>")
+#event_data_coord <- event_data |>
+ # geocode(address = event_location, method = 'osm')
 
-event_data_coord_pulled <- event_data_coord |>
-  filter(!is.na(lat))
+#event_data_coord_pulled <- event_data_coord |>
+ # filter(!is.na(lat))
 
-write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coordinates_v2.csv")
+#write_csv(event_data_coord_pulled, "NYC_Event_Information_Historical_05.2025_coordinates_v2.csv")
 
 ```
 
+### Second step: Data Cleaning and Merging
+
+ Here we clean the event dataset and merge it with taxi data to find trips related to events.
+
 ```{r}
 #| label: event_dataset
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+
 event_data_final <- read_csv("Data/NYC_Event_Information_Historical_05.2025_coordinates.csv")
   
 event_data_final <- event_data_final |> 
@@ -70,7 +99,7 @@ event_data_final <- event_data_final |>
   select(-c(event_agency, event_type, event_borough, event_street_side, street_closure_type, community_board, police_precinct)) 
 
 event_data_final |>
-  #head(10) |>
+  head(10) |>
   view()
 
 yellow_and_green |>
@@ -78,8 +107,15 @@ yellow_and_green |>
   view()
 ```
 
+### Third step: Analyzing Taxi Trips Related to Events 
+We identify taxi trips related to events based on pickup and dropoff locations and times.
+
+
 ```{r}
 #| label: data preparing and merging
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
 
 
 taxi_data <- yellow_and_green |>
@@ -142,3 +178,95 @@ event_revenue <- departures |>
   view() 
 
 ```
+ ### Making lines and visualization
+ 
+ **In this step we create lines representing taxi trips related to events and visualize them on a map along with event points and taxi zones.**
+ 
+* The first visualization highlights the top 20 events by taxi revenue in a horizontal bar chart.
+ 
+* The second visualization maps event points sized by total taxi revenue on top of taxi zones.
+```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+
+
+
+```
+
+```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+
+event_names <- event_data %>%
+  select(event_id, event_name) %>%
+  distinct()
+
+event_revenue <- departures %>%
+  group_by(event_id) %>%
+  summarise(total_revenue = sum(total_amount, na.rm = TRUE)) %>%
+  left_join(event_names, by = "event_id") %>%
+  arrange(desc(total_revenue))
+
+top20_events <- event_revenue %>%
+  filter(!is.na(event_name)) %>% 
+  slice_max(total_revenue, n = 20)
+
+```
+
+```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+
+ggplot(top20_events, aes(x = reorder(event_name, total_revenue), y = total_revenue)) +
+  # We move 'fill' inside aes() to map it to a variable, and hide the redundant legend.
+  geom_col(aes(fill = event_name), show.legend = FALSE) +
+  scale_fill_brewer(palette = "Pastel1") +
+  coord_flip() +
+  labs(
+    title = "Top 20 Events by Taxi Revenue",
+    x = "Event Name", # Corrected axis label
+    y = "Total Revenue ($)"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+
+event_points_sf <- event_data_final %>%
+  select(event_id, geometry) %>% 
+  st_as_sf() %>%
+  st_transform(st_crs(taxi_zones))
+
+# Calculate revenue per event (only departures needed)
+event_revenue <- departures %>%
+  group_by(event_id) %>%
+  summarise(total_revenue = sum(total_amount, na.rm = TRUE)) %>%
+  left_join(event_points_sf, by = "event_id") %>%
+  st_as_sf() %>% 
+  st_transform(st_crs(taxi_zones))
+
+# Plot map: zones + events
+ggplot() +
+  geom_sf(data = taxi_zones, fill = "gray80", color = "white", size = 0.2) +
+  geom_sf(data = event_revenue, aes(size = total_revenue), shape = 21, fill = "pink", color = "black", alpha = 0.8) +
+  scale_size_continuous(range = c(2,8), name = "Event Revenue") +
+  labs(
+    title = "NYC Taxi Trips to Events — May 2025",
+    subtitle = "Event points sized by total taxi revenue",
+    caption = "Source: NYC Taxi & Event datasets"
+  ) +
+  theme_minimal()
+```
+
+* And the last visualization combines taxi zones, trip lines, event points, and event revenue sizes into a comprehensive map.
+
+* How i did it: at first we convert taxi zones and event points into sf objects with the same CRS. Then, we calculate centroids for taxi zones to represent pickup and dropoff locations. We create lines for arrivals (from pickup centroid to event point) and departures (from event point to dropoff centroid). Finally, we plot the taxi zones, trip lines, event points, and event revenue sizes using ggplot2.
+
+![Beautiful full visualization we were not able to uplode for some reason, but we still have it](NYC.png)
+
